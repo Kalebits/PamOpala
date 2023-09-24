@@ -1,5 +1,7 @@
 using System.Net.Mail;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using OpalaAPIPam.Data;
 using OpalaAPIPam.Models;
 using OpalaAPIPam.Models.Enuns;
 
@@ -9,45 +11,66 @@ namespace OpalaAPIPam.Controllers
     [Route("[Controller]")]
     public class UsuariosController : ControllerBase
     {
-        private static List<Usuario> usuarios = new List<Usuario>(){
-        new Usuario(){ Id = 1, Nome = "Pedro Silva", Email = "PedroS@gmail.com", Senha = "pedrinho123", Endereco = null, tipoEnum=TipoEnum.Fisica, generoEnum=GeneroEnum.Masculino},
-        new Usuario(){ Id = 2, Nome = "Gustavo Henrique", Email = "gHenrique@gmail.com", Senha = "henrique123", Endereco = null, tipoEnum=TipoEnum.Fisica, generoEnum=GeneroEnum.Masculino}
-       };
+        private readonly DataContext _context;
+
+        public UsuariosController(DataContext context)
+        {
+            _context = context;
+        }
 
 
         //Chama todos
         [HttpGet("GetAll")]
-        public IActionResult Get()
+        public async Task<IActionResult> Get()
         {
-            return Ok(usuarios);
-        }
-
-        //Chama o primeiro, se quiser deletar pode deletar n sei
-        [HttpGet("Get")]
-        public IActionResult GetFirst()
-        {
-            Usuario u = usuarios[0];
-            return Ok(u);
+            try
+            {
+                List<Usuario> lista = await _context.Usuarios.ToListAsync();
+                return Ok(lista);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
 
         //GetById
         [HttpGet("{id}")]
-        public IActionResult GetSingle(int id)
+        public async Task<IActionResult> GetSingle(int id)
         {
-            return Ok(usuarios.FirstOrDefault(u => u.Id == id));
+            try
+            {
+                Usuario u = await _context.Usuarios.FirstOrDefaultAsync(uBusca => uBusca.Id == id);
+                return Ok(u);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
 
         //Cria um novo usuario
         [HttpPost]
-        public IActionResult AddUsuario(Usuario novoUsuario)
+        public async Task<IActionResult> AddUsuario(Usuario novoUsuario)
         {
             try
             {
                 var email = new MailAddress(novoUsuario.Email);
-                usuarios.Add(novoUsuario);
-                return Ok(usuarios);
+                
+                try
+                {
+                    await _context.Usuarios.AddAsync(novoUsuario);
+                    await _context.SaveChangesAsync();
+
+                    return Ok(novoUsuario.Id);
+                }
+                catch (Exception ex)
+                {
+                    return BadRequest(ex.Message);
+                }
+
             }
             catch
             {
@@ -59,73 +82,116 @@ namespace OpalaAPIPam.Controllers
 
         //Edita
         [HttpPut]
-        public IActionResult UpdateUsuario(Usuario u)
+        public async Task<IActionResult> UpdateUsuario(Usuario u)
         {
-            Usuario uAlterado = usuarios.Find(usu => usu.Id == u.Id);
-            uAlterado.Nome = u.Nome;
-            uAlterado.Email = u.Email;
-            uAlterado.Senha = u.Senha;
-            uAlterado.Endereco = u.Endereco;
+            try{
+                var email = new MailAddress(u.Email);
+                try
+                {
+                    _context.Usuarios.Update(u);
+                    int linhasAfetadas = await _context.SaveChangesAsync();
 
-            return Ok(usuarios);
+                    return Ok(linhasAfetadas);
+                }
+                catch (Exception ex)
+                {
+                    return BadRequest(ex.Message);
+                }
+            }
+            catch{
+                return BadRequest("Email Invalido");
+            }
         }
 
 
         //deleta o id digitado
         [HttpDelete("{id}")]
-        public IActionResult Delete(int id)
+        public async Task<IActionResult> Delete(int id)
         {
-            usuarios.RemoveAll(u => u.Id == id);
+            try{
+                Usuario uRemover = await _context.Usuarios.FirstOrDefaultAsync(u => u.Id == id);
 
-            return Ok(usuarios);
+                _context.Usuarios.Remove(uRemover);
+                int linhasAfetadas = await _context.SaveChangesAsync();
+                return Ok(linhasAfetadas);
+            }
+            catch(System.Exception ex){
+                return BadRequest(ex.Message);
+            }
         }
 
 
-        //Ordena de acordo com a avaliacao, na teoria, porem não sei como fazer, voce tem q pegar todas as notas registradas para 1 usuario, 
-        // e dps disso fazer a média, seria algo do tipo List<Avaliacao> notas = (a => a.Usuario.Id == id)
-        //                                               int avaliacao.count
-        //                                               notaMed =
-        // eu não consegui, mas acho que tu faz um count pra começar 1 método for e vai armazenando num +=, e isso na teoria, pra dps fazer a média e exibir de acordo com essa nota
-        [HttpGet("GetOrdenado")]
-        public IActionResult GetOrdem()
-        {
-            List<Usuario> listaFinal = usuarios.OrderBy(u => u.avaliacao.Nota).ToList();
-            return Ok(listaFinal);
-        }
+        /*Ordena de acordo com a avaliacao, na teoria, porem não sei como fazer, voce tem q pegar todas as notas registradas para 1 usuario, 
+         e dps disso fazer a média, seria algo do tipo List<Avaliacao> notas = (a => a.Usuario.Id == id)
+                                                       int avaliacao.count
+                                                       notaMed =
+         eu não consegui, mas acho que tu faz um count pra começar 1 método for e vai armazenando num +=, e isso na teoria, pra dps fazer a média e exibir de acordo com essa nota*/
+        /*  [HttpGet("GetOrdenado")]
+          public async Task<IActionResult> GetOrdem()
+          {
+            try{
+                List<Usuario> lista = await _context.Usuarios.ToListAsync();
+                return Ok(lista); CARA AQUI EU NÃO SEI OQ FAZER REAL
+            }
+            catch(Exception ex){
+                return BadRequest(ex.Message);
+            }
+              List<Usuario> listaFinal = usuarios.OrderBy(u => u.avaliacoes).ToList();
+              return Ok(listaFinal);
+          }*/
 
 
         //Conta a quantidade de usuarios registrado no sistema
         [HttpGet("GetContagem")]
-        public IActionResult GetQuantidade()
+        public async Task<IActionResult> GetQuantidade()
         {
-            return Ok("Quantidade de usuarios: " + usuarios.Count);
+            try
+            {
+               int quantidade = _context.Usuarios.Count();
+               return Ok(quantidade);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            
         }
 
 
         //Vai procurar nomes parecidos com o solicitado tambem
-        [HttpGet("GetByNome/{nome}")]
+        /*[HttpGet("GetByNome/{nome}")]
         public IActionResult GetByNome(string nome)
         {
-            List<Usuario> listaBusca = usuarios.FindAll(u => u.Nome.Contains(nome));
+            List<Usuario> listaBusca = _context.Usuarios.ToListAsync(_context.Usuarios.Contains(nome));
             return Ok(listaBusca);
-        }
+        }*/
 
-
-        //Get a partir da nota pedida
-        [HttpGet("GetByAvaliacao/{nota}")]
-        public IActionResult Get(int nota)
-        {
-            List<Usuario> listaFinal = usuarios.FindAll(u => u.avaliacao.Nota >= nota);
-            return Ok(listaFinal);
-        }
+        /*
+                //Get a partir da nota pedida
+                [HttpGet("GetByAvaliacao/{nota}")]
+                public IActionResult Get(int nota)
+                {
+                    List<Usuario> listaFinal = usuarios.FindAll(u => u.avaliacoes.Contains(nota))
+                    return Ok(listaFinal);
+                }*/
 
         //Filtra de acordo com a enum (tipoEnum)
         [HttpGet("GetByTipo/{enumId}")]
-        public IActionResult GetByTipo(int enumId)
+        public async Task<IActionResult> GetByTipo(int enumId)
         {
-            TipoEnum enumDigitado = (TipoEnum)enumId;
-            List<Usuario> listaBusca = usuarios.FindAll(u => u.tipoEnum == enumDigitado);
-            return Ok(listaBusca);
+            try
+            {
+                //Usuario u = await _context.Usuarios.FirstOrDefaultAsync(uBusca => uBusca.Id == id);
+                //Usuario u = await _context.Usuarios.All(uBusca => uBusca.tipoEnum.Equals == enumId);
+                Usuario u = await _context.Usuarios.Find(uBusca => uBusca.tipoEnum.Equals == enumId);
+                return Ok(u);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
+
+        
     }
 }

@@ -11,10 +11,10 @@ namespace OpalaAPIPam.Models{
         public String Endereco { get; set; }
         public TipoEnum tipoEnum { get; set; }
         public GeneroEnum generoEnum { get; set; }
-        public Instrumento? instrumento { get; set; }
-        public Banda? banda { get; set; }
-        public Contrato? contrato { get; set; }
-        public Avaliacao? avaliacao { get; set; }
+        public ICollection<Instrumento>? instrumento { get; set; }
+        public ICollection<Banda>? banda { get; set; }
+        public ICollection<Contrato>? contrato { get; set; }
+        public ICollection<Avaliacao>? avaliacoes { get; }
         
     }
 }
